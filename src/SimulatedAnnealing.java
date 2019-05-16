@@ -23,7 +23,8 @@ import java.util.Random;
 public class SimulatedAnnealing extends HyperHeuristic {
     
     private final double[][] conditions;
-
+    private long seed;
+    private int epochs;
     /**
      * Creates a new instance of <code>SampleHyperHeuristic</code>.
      * <p>
@@ -32,11 +33,15 @@ public class SimulatedAnnealing extends HyperHeuristic {
      * @param heuristics The heuristics available for the hyper-heuristic.
      * @param seed The seed to initialize the random number generator in this
      * hyper-heuristic.
+     * @param epochs Times the algorithm sees each instance
      */
-    public SimulatedAnnealing(Feature[] features, Heuristic[] heuristics, long seed) {
+    public SimulatedAnnealing(Feature[] features, Heuristic[] heuristics, long seed, int epochs) {
         //Initialization of heuristic conditions in feature space
         super(features, heuristics);
         Random random;    
+        this.seed = seed;
+        this.epochs = epochs;
+        
         //Initialize conditions
         conditions = new double[heuristics.length][];
         random = new Random(seed);
@@ -76,11 +81,9 @@ public class SimulatedAnnealing extends HyperHeuristic {
         for (Heuristic heur : heuristics) {
             solver = new BinPackingSolver(problem);
             solver.solveState(heur);
-            for(int j = 0; j< features.length; j++){
-                solvedState[j] = solver.getFeature(features[j]);
-            }
+            solvedState = getState(solver);
             cost = solvedState[7] + solvedState[8];
-            distance = getDistance(state,solvedState);
+            distance = getDistance(state,conditions[heur.ordinal()]);
             if (distance < minDistance) {
                 minDistance = distance;
                 closestCost = cost;
@@ -168,35 +171,44 @@ public class SimulatedAnnealing extends HyperHeuristic {
         ClosestBest closestBestHeuristic;
         BinPackingSolver solver;
         set = new BinPackingProblemSet(folder);
-        int numItems;
-        Random rand = new Random();
+        int numItems, totalSteps;
+        Random rand = new Random(seed);
         double[] state;
-        double prob,delta,temp, thres;
+        double prob,delta,temp, initialTemp, thres;
         List<Item> items;
-        temp = 10;
+        initialTemp = temp = 10;
+        totalSteps = getTotalSteps(folder);
         
-        for (BinPackingProblem problem : set.getInstances()){
-            solver = new BinPackingSolver(problem);
-            items = solver.getItems();
-            while (items.size() > 1) {
+        for(int k =0; k<epochs; k++){
+            System.out.println(temp);
+            for (BinPackingProblem problem : set.getInstances()){
+                solver = new BinPackingSolver(problem);
                 items = solver.getItems();
-                //To see if problem states are changing (bins being packed)
-                //System.out.println(problem.getFileName() + items.size());
-                //Get closest and best heuristics with their cost
-                closestBestHeuristic = getClosestBestHeuristic(problem);
-                state = getState(solver);
-                //Compute acceptance probability of bringing closer closest Heur instead of Best
-                delta = closestBestHeuristic.bestCost - closestBestHeuristic.closestCost;
-                prob = Math.exp(delta/temp);
-                thres = rand.nextDouble();
-                if(thres < prob){
-                    //Move closest heuristic closer to current state, otherwise move best
-                    moveHeuristic(closestBestHeuristic.closestHeur, state);
-                } else {
-                    moveHeuristic(closestBestHeuristic.bestHeur, state);
+                while (items.size() > 1) {
+                    items = solver.getItems();
+                    //To see if problem states are changing (bins being packed)
+                    //System.out.println(problem.getFileName() + items.size());
+                    //Get closest and best heuristics with their cost
+                    closestBestHeuristic = getClosestBestHeuristic(problem);
+                    state = getState(solver);
+                    //Compute acceptance probability of bringing closer closest Heur instead of Best
+                    delta = closestBestHeuristic.closestCost - closestBestHeuristic.bestCost;
+                    prob = Math.exp(delta/temp);
+                    System.out.println(closestBestHeuristic.closestCost);
+                    System.out.println(closestBestHeuristic.bestCost);
+                    thres = rand.nextDouble();
+                    if(thres < prob){
+                        //Move closest heuristic closer to current state, otherwise move best
+                        moveHeuristic(closestBestHeuristic.closestHeur, state);
+                        //moveHeuristic(closestBestHeuristic.bestHeur,5); //Move best randomly
+                    } else {
+                        moveHeuristic(closestBestHeuristic.bestHeur, state);
+                        //moveHeuristic(closestBestHeuristic.closestHeur,5); //Move closest randomly
+                    }
+                    //Advance state using closest heuristic and remove item
+                    solver.solveState(closestBestHeuristic.closestHeur);
+                    temp = temp - initialTemp/totalSteps;
                 }
-                //Advance state using closest heuristic and remove item
-                solver.solveState(closestBestHeuristic.closestHeur);
             }
         }
         return null;
@@ -204,11 +216,29 @@ public class SimulatedAnnealing extends HyperHeuristic {
 
     private void moveHeuristic(Heuristic heuristic, double[] state) {
         double[] diffVec = new double[features.length];
-        Random rand = new Random();
+        Random rand = new Random(seed);
         for(int i=0; i<features.length; i++){
             diffVec[i] = state[i] - conditions[heuristic.ordinal()][i];
             conditions[heuristic.ordinal()][i] =+ rand.nextDouble()*diffVec[i];
         }
+    }
+    
+    private void moveHeuristic(Heuristic heuristic, double step) {
+        double[] diffVec = new double[features.length];
+        Random rand = new Random(seed);
+        for(int i=0; i<features.length; i++){
+            conditions[heuristic.ordinal()][i] =+ -1 + 2*step*rand.nextDouble();
+        }
+    }
+    
+    private int getTotalSteps(String folder){
+        int totalSteps = 0;
+        BinPackingProblemSet set;
+        set = new BinPackingProblemSet(folder);
+        for (BinPackingProblem problem : set.getInstances()){
+            totalSteps+= problem.getNbItems();
+        }
+        return totalSteps*epochs;
     }
 
 }

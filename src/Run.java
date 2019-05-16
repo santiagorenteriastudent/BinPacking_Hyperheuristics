@@ -83,8 +83,12 @@ public class Run {
                     Heuristic.ALMOST_WORST_FIT_SC,
                     Heuristic.ALMOST_WORST_FIT_DC
                 },
-                1825 // Change this value to generate a different hyper-heuristic.
+                1, // Change this value to generate a different hyper-heuristic.
+                10 //Epochs: Times Simulated Annealing sees each instance during training
         );
+        solveSet("Instances/Training", "randomHyperHeuristic-Training.csv", hyperHeuristic);
+        solveSet("Instances/Testing", "randomHyperHeuristic-Testing.csv", hyperHeuristic);
+        //Solve with Simulated Annealing
         System.out.println(hyperHeuristic);
         hyperHeuristic.train("Instances/Training");
         /*
