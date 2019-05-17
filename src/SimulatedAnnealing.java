@@ -8,8 +8,10 @@ import BinPacking.Solver.Feature;
 import BinPacking.Solver.BinPackingSolver;
 import BinPacking.Solver.ClosestBest;
 import BinPacking.Utils.BinPackingProblemSet;
+import BinPacking.Utils.Files;
 import java.util.Arrays;
 import java.lang.Math;
+import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Random;
 
@@ -25,6 +27,7 @@ public class SimulatedAnnealing extends HyperHeuristic {
     private final double[][] conditions;
     private long seed;
     private int epochs;
+    public int[] freqHeuristics;
     /**
      * Creates a new instance of <code>SampleHyperHeuristic</code>.
      * <p>
@@ -41,6 +44,7 @@ public class SimulatedAnnealing extends HyperHeuristic {
         Random random;    
         this.seed = seed;
         this.epochs = epochs;
+        freqHeuristics = new int[heuristics.length]; //Stores how many times heuristics are chosen
         
         //Initialize conditions
         conditions = new double[heuristics.length][];
@@ -48,7 +52,8 @@ public class SimulatedAnnealing extends HyperHeuristic {
         for (int i = 0; i < heuristics.length; i++) {
             conditions[i] = new double[features.length];
             for (int j = 0; j < features.length; j++) {
-                conditions[i][j] = random.nextDouble();
+                //random between 0 and 1. All heuristics begin within a hypersphere of radius 1 in the feature space
+                conditions[i][j] = -1 + 2*random.nextDouble(); 
             }
         }
     }
@@ -79,10 +84,9 @@ public class SimulatedAnnealing extends HyperHeuristic {
         
         //Solve current state with every Heuristic and store solvedState
         for (Heuristic heur : heuristics) {
-            solver = new BinPackingSolver(problem);
             solver.solveState(heur);
             solvedState = getState(solver);
-            cost = solvedState[7] + solvedState[8];
+            cost = solvedState[8];
             distance = getDistance(state,conditions[heur.ordinal()]);
             if (distance < minDistance) {
                 minDistance = distance;
@@ -93,6 +97,7 @@ public class SimulatedAnnealing extends HyperHeuristic {
                 bestCost = cost;
                 heuristic[1] = heur; //Min cost (best) heuristic
             }
+            solver = new BinPackingSolver(problem);
         }
         return new ClosestBest(heuristic[0],heuristic[1],closestCost,bestCost);
     }
@@ -106,9 +111,12 @@ public class SimulatedAnnealing extends HyperHeuristic {
          * Calculates the current problem state.
          */
         state = new double[features.length];
-        for (int i = 0; i < state.length; i++) {
-            state[i] = solver.getFeature(features[i]);
-        }
+        state = getState(solver);
+        
+        //for (int i = 0; i < state.length; i++) {
+        //    state[i] = solver.getFeature(features[i]);
+        //}
+        
         /*
          * Calculates the distance from the problem state to each of the condition in the hyper-heuristic.
          */
@@ -121,6 +129,7 @@ public class SimulatedAnnealing extends HyperHeuristic {
                 heuristic = heuristics[i];
             }
         }
+        freqHeuristics[heuristic.ordinal()]+= 1; //If heuritic was selected increase its frequency by 1
         return heuristic;
     }
 
@@ -133,6 +142,38 @@ public class SimulatedAnnealing extends HyperHeuristic {
         }
         return string.toString().trim();
     }
+    
+    /**
+     * Saves condition matrix with frequency using each heuristic
+     * @param fileName
+     */
+    @Override
+    public void saveCondMatrix(String fileName) {
+        StringBuilder string;
+        DecimalFormat format;
+        BinPackingProblemSet set;
+        BinPackingSolver solver;
+        string = new StringBuilder();
+        format = new DecimalFormat("0.0000");
+        /*
+         * Prints the header of the file.
+         */
+        string.append("AVGL, STDL, SMALL, VSMALL, LARGE, VLARGE, COLORC, OBINS, AVGW, COLORF\n");
+        /*
+         * Prints conditions matrix
+         */
+        
+        for (int i = 0; i < heuristics.length; i++) {
+            for (int j = 0; j < features.length; j++) {
+                string.append(conditions[i][j]).append(", ");
+            }
+            string.append(heuristics[i].toString()).append(", ");
+            string.append(freqHeuristics[i]).append("\n");
+        }
+        Files.save(string.toString().trim(), fileName);
+        freqHeuristics = new int[heuristics.length]; //Stores how many times heuristics are chosen
+    }
+
     
     /**
      * Returns the Euclidian distance between the condition of a rule in the hyper-heuristic and the current problem state.
@@ -176,8 +217,9 @@ public class SimulatedAnnealing extends HyperHeuristic {
         double[] state;
         double prob,delta,temp, initialTemp, thres;
         List<Item> items;
-        initialTemp = temp = 10;
+        initialTemp = temp = 10; //Try between 5 and 15. 100 gives probabilities near 1 for all neighbors (not useful).
         totalSteps = getTotalSteps(folder);
+        
         
         for(int k =0; k<epochs; k++){
             System.out.println(temp);
@@ -192,18 +234,21 @@ public class SimulatedAnnealing extends HyperHeuristic {
                     closestBestHeuristic = getClosestBestHeuristic(problem);
                     state = getState(solver);
                     //Compute acceptance probability of bringing closer closest Heur instead of Best
-                    delta = closestBestHeuristic.closestCost - closestBestHeuristic.bestCost;
+                    delta = closestBestHeuristic.bestCost-closestBestHeuristic.closestCost;
                     prob = Math.exp(delta/temp);
+                    System.out.println("prob: " + prob);
+                    System.out.print("closestCost: ");
                     System.out.println(closestBestHeuristic.closestCost);
+                    System.out.print("bestCost: ");
                     System.out.println(closestBestHeuristic.bestCost);
                     thres = rand.nextDouble();
                     if(thres < prob){
                         //Move closest heuristic closer to current state, otherwise move best
-                        moveHeuristic(closestBestHeuristic.closestHeur, state);
-                        //moveHeuristic(closestBestHeuristic.bestHeur,5); //Move best randomly
+                        moveHeuristic(closestBestHeuristic.closestHeur, state); //Move closest closer
+                        //moveHeuristic(closestBestHeuristic.bestHeur,5); //Move best randomly (Remove if you want)
                     } else {
-                        moveHeuristic(closestBestHeuristic.bestHeur, state);
-                        //moveHeuristic(closestBestHeuristic.closestHeur,5); //Move closest randomly
+                        moveHeuristic(closestBestHeuristic.bestHeur, state); //Move best closer
+                        //moveHeuristic(closestBestHeuristic.closestHeur,5); //Move closest randomly (Remove if you want)
                     }
                     //Advance state using closest heuristic and remove item
                     solver.solveState(closestBestHeuristic.closestHeur);
@@ -227,7 +272,7 @@ public class SimulatedAnnealing extends HyperHeuristic {
         double[] diffVec = new double[features.length];
         Random rand = new Random(seed);
         for(int i=0; i<features.length; i++){
-            conditions[heuristic.ordinal()][i] =+ -1 + 2*step*rand.nextDouble();
+            conditions[heuristic.ordinal()][i] =+ step*(-1 + 2*rand.nextDouble());
         }
     }
     

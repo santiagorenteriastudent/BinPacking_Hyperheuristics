@@ -37,7 +37,23 @@ public class Run {
         /*
          * Solves a set of problem instances by using some specific heuristics.
          */
-        solveSet("Instances/Training", "heuristics.csv",
+        solveSet("Instances/Training", "heuristics_Train.csv",
+                new Heuristic[]{
+                    Heuristic.FIRST_FIT,
+                    Heuristic.FIRST_FIT_SC,
+                    Heuristic.FIRST_FIT_DC,
+                    Heuristic.BEST_FIT,
+                    Heuristic.BEST_FIT_SC,
+                    Heuristic.BEST_FIT_DC,
+                    Heuristic.WORST_FIT,
+                    Heuristic.WORST_FIT_SC,
+                    Heuristic.WORST_FIT_DC,
+                    Heuristic.ALMOST_WORST_FIT,
+                    Heuristic.ALMOST_WORST_FIT_SC,
+                    Heuristic.ALMOST_WORST_FIT_DC
+                }
+        );
+        solveSet("Instances/Training", "heuristics_Test.csv",
                 new Heuristic[]{
                     Heuristic.FIRST_FIT,
                     Heuristic.FIRST_FIT_SC,
@@ -56,51 +72,71 @@ public class Run {
         /*
          * Creates a sample hyper-heuristic.
          */
-        hyperHeuristic = new SimulatedAnnealing(
-                new Feature[]{
-                    Feature.AVGL,
-                    Feature.STDL,
-                    Feature.SMALL,
-                    Feature.VSMALL,
-                    Feature.LARGE,
-                    Feature.VLARGE,
-                    Feature.COLORC,
-                    Feature.OBINS,
-                    Feature.AVGW,
-                    Feature.COLORF
-                },
-                new Heuristic[]{
-                    Heuristic.FIRST_FIT,
-                    Heuristic.FIRST_FIT_SC,
-                    Heuristic.FIRST_FIT_DC,
-                    Heuristic.BEST_FIT,
-                    Heuristic.BEST_FIT_SC,
-                    Heuristic.BEST_FIT_DC,
-                    Heuristic.WORST_FIT,
-                    Heuristic.WORST_FIT_SC,
-                    Heuristic.WORST_FIT_DC,
-                    Heuristic.ALMOST_WORST_FIT,
-                    Heuristic.ALMOST_WORST_FIT_SC,
-                    Heuristic.ALMOST_WORST_FIT_DC
-                },
-                1, // Change this value to generate a different hyper-heuristic.
-                10 //Epochs: Times Simulated Annealing sees each instance during training
-        );
-        solveSet("Instances/Training", "randomHyperHeuristic-Training.csv", hyperHeuristic);
-        solveSet("Instances/Testing", "randomHyperHeuristic-Testing.csv", hyperHeuristic);
-        //Solve with Simulated Annealing
-        System.out.println(hyperHeuristic);
-        hyperHeuristic.train("Instances/Training");
-        /*
-         * Solves a set of problem instances (the ones used for training) by using the previously defined hyper-heuristic.
-         */
-        solveSet("Instances/Training", "hyperHeuristic-Training.csv", hyperHeuristic);
-        /*
-         * Solves a set of problem instances (the ones used for testing) by using the previously defined hyper-heuristic.
-         */
-        solveSet("Instances/Testing", "hyperHeuristic-Testing.csv", hyperHeuristic);
         
-        System.out.println(hyperHeuristic);
+        //Experiment
+        int[] exp_epochs = new int[]{1,5,10,25,50,100}; //Number of epochs for each experiment 
+        
+        for(int ep=0; ep<exp_epochs.length; ep++){
+            for(int i = 0; i < 10; i++){ //10 models per epoch
+                hyperHeuristic = new SimulatedAnnealing(
+                        new Feature[]{
+                            Feature.AVGL,
+                            Feature.STDL,
+                            Feature.SMALL,
+                            Feature.VSMALL,
+                            Feature.LARGE,
+                            Feature.VLARGE,
+                            Feature.COLORC,
+                            Feature.OBINS,
+                            Feature.AVGW,
+                            Feature.COLORF
+                        },
+                        new Heuristic[]{
+                            Heuristic.FIRST_FIT,
+                            Heuristic.FIRST_FIT_SC,
+                            Heuristic.FIRST_FIT_DC,
+                            Heuristic.BEST_FIT,
+                            Heuristic.BEST_FIT_SC,
+                            Heuristic.BEST_FIT_DC,
+                            Heuristic.WORST_FIT,
+                            Heuristic.WORST_FIT_SC,
+                            Heuristic.WORST_FIT_DC,
+                            Heuristic.ALMOST_WORST_FIT,
+                            Heuristic.ALMOST_WORST_FIT_SC,
+                            Heuristic.ALMOST_WORST_FIT_DC
+                        },
+                        i, // Change this value to generate a different hyper-heuristic.
+                        ep //Epochs: Times Simulated Annealing sees each instance during training
+                );
+                
+                //Save results (average waste) of random heuristics with range 0.0-1.0
+                
+                solveSet("Instances/Training", "rand_Train_" + exp_epochs[ep] + "_" + i + ".csv", hyperHeuristic);
+                hyperHeuristic.saveCondMatrix("randCondMatrixTrain_" + exp_epochs[ep] + "_" + i + ".csv");
+                solveSet("Instances/Testing", "rand_Test_" + exp_epochs[ep] + "_" + i + ".csv", hyperHeuristic);
+                hyperHeuristic.saveCondMatrix("randCondMatrixTest_" + exp_epochs[ep] + "_" + i + ".csv");
+                
+                
+                //System.out.println(hyperHeuristic);
+                //Solve with Simulated Annealing
+                hyperHeuristic.train("Instances/Training");
+               
+                /*
+                 * Solves a set of problem instances (the ones used for training) by using the previously defined hyper-heuristic.
+                 */
+                solveSet("Instances/Training", "Hyp_Train_" + exp_epochs[ep] + "_" + i + ".csv", hyperHeuristic);
+                hyperHeuristic.saveCondMatrix("HypCondMatrixTrain_" + exp_epochs[ep] + "_" + i + ".csv");
+                /*
+                 * Solves a set of problem instances (the ones used for testing) by using the previously defined hyper-heuristic.
+                 */
+                solveSet("Instances/Testing", "Hyp_Test_" + exp_epochs[ep] + "_" + i + ".csv", hyperHeuristic);
+                hyperHeuristic.saveCondMatrix("HypCondMatrixTest" + exp_epochs[ep] + "_" + i + ".csv");
+                //System.out.println(hyperHeuristic);
+                
+            }
+        }
+        
+       
     }
 
     /**
@@ -160,6 +196,7 @@ public class Run {
         BinPackingSolver solver;
         string = new StringBuilder();
         set = new BinPackingProblemSet(folder);
+        //Reset freqMatrix in SimulatedAnnealing
         format = new DecimalFormat("0.0000");
         /*
          * Prints the header of the file.

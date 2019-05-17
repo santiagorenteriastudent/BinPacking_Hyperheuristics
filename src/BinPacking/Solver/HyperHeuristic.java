@@ -34,6 +34,7 @@ public abstract class HyperHeuristic {
      */
     public abstract Heuristic getHeuristic(BinPackingSolver solver);
     public abstract double[][] train(String folder);
+    public abstract void saveCondMatrix(String fileName);
 
     /**
      * Returns the string representation of this hyper-heuristic.

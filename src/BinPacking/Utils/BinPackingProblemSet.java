@@ -27,8 +27,8 @@ public class BinPackingProblemSet {
         List<String> fileNames;
         File file = new File(folder);
         if (!file.exists() || !file.isDirectory()) {
-            System.err.println("The path \'" + folder + "\'is not a valid directory.");
-            System.err.println("The system will halt.");
+            //System.err.println("The path \'" + folder + "\'is not a valid directory.");
+            //System.err.println("The system will halt.");
             System.exit(1);
         }
         fileNames = Arrays.asList(file.list());
@@ -36,9 +36,9 @@ public class BinPackingProblemSet {
         i = 0;
         instances = new BinPackingProblem[fileNames.size()];
         for (String fileName : fileNames) {
-            System.out.print("Loading \'" + folder + "/" + fileName + "\'...");            
+            //System.out.print("Loading \'" + folder + "/" + fileName + "\'...");            
             instances[i++] = new BinPackingProblem(folder + "/" + fileName);            
-            System.out.println(" done.");
+            //System.out.println(" done.");
         }
     }        
     
